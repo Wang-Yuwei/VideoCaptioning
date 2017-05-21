@@ -39,7 +39,9 @@ class Model:
         self.next_words_sliced = tf.slice(self.next_words, [0, 0, 0], [-1, self.max_time - 1, -1])
         self.input_sliced = tf.slice(self.input, [0, 1, 0], [-1, -1, -1])
         # TODO add mask here
+        # shape of probability (batch_size, max_sentence_length - 1, dict_size)
         self.probability = self.input_sliced * self.next_words_sliced
+        # shape of probability (batch_size, max_sentence_length - 1)
         self.probability = tf.reduce_sum(self.probability, [-1]) + 1e-6
         self.log_prob = -tf.log(self.probability)
         self.sum_log = tf.reduce_sum(self.log_prob, [1])
