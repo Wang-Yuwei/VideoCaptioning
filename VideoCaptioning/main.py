@@ -4,7 +4,13 @@ from youtube import preprocess_data, process_dict
 from youtube_generator import YouTubeGenerator
 
 
-batch_size = 1
+preprocess_data('youtubeclips/video-descriptions.csv',
+                'youtubeclips/youtube_mapping.txt',
+                'result.txt')
+
+process_dict('result.txt', 'dict.txt', 'index.txt')
+
+batch_size = 3
 generator = YouTubeGenerator('index.txt', 'features', batch_size)
 
 feature_shape = [50, 4096]
