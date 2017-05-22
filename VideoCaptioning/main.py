@@ -1,29 +1,24 @@
-#from model import Model
-#import numpy
-
-
-#feature_shape = [50, 4096]
-#words_number = 12
-#max_time = 20
-
-#model = Model(feature_shape = feature_shape,
-#              words_number = words_number,
-#              batch_size = 1,
-#              max_time = max_time)
-#model.create_model()
-
-#train_data = numpy.zeros(shape = [1, max_time, words_number])
-#train_feature = numpy.zeros([1, feature_shape[0], feature_shape[1]])
-#train_length = numpy.array([max_time])
-
-#for i in range(max_time):
-#    train_data[0, i, i % words_number] = 1
-
-#model.train(train_data, train_feature, train_length)
-
+from model import Model
+import numpy
 from youtube import preprocess_data, process_dict
+from youtube_generator import YouTubeGenerator
 
-preprocess_data('youtubeclips/video-descriptions.csv',
-                'youtubeclips/youtube_mapping.txt', 'result.txt')
 
-process_dict('result.txt', 'dict.txt', 'index.txt')
+batch_size = 1
+generator = YouTubeGenerator('index.txt', 'features', batch_size)
+
+feature_shape = [50, 4096]
+words_number = generator.words_number
+max_time = generator.max_sentence_length
+model, length, feature = generator.next()
+
+model = Model(feature_shape = feature_shape,
+              words_number = words_number,
+              batch_size = batch_size,
+              max_time = max_time)
+model.create_model()
+
+model.train(generator)
+
+
+print(feature.shape)

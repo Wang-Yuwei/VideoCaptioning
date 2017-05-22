@@ -43,7 +43,9 @@ class Model:
         self.probability = self.input_sliced * self.next_words_sliced
         # shape of probability (batch_size, max_sentence_length - 1)
         self.probability = tf.reduce_sum(self.probability, [-1]) + 1e-6
-        self.log_prob = -tf.log(self.probability)
+        self.mask = tf.sequence_mask(self.length, self.max_time)
+        self.mask = tf.slice(self.mask, [0, 1], [-1, -1])
+        self.log_prob = -tf.log(self.probability) * tf.cast(self.mask, tf.float32)
         self.sum_log = tf.reduce_sum(self.log_prob, [1])
         self.ppl = tf.reduce_sum(self.sum_log / self.length)
         self.optimizer = tf.train.RMSPropOptimizer(0.0001, momentum = 0.5).minimize(self.ppl)
@@ -122,13 +124,15 @@ class Model:
             result.append(tf.stack(result_list))
         return tf.stack(result, axis = 0, name = name)
 
-    def train(self, train_data, train_feature, train_length):
+    def train(self, train_generator):
         with tf.Session() as session:
             session.run(tf.global_variables_initializer())
-            for i in range(1000):
-                _, loss_value, summary = session.run(
-                    [self.optimizer, self.ppl, self.summary],
-                    feed_dict = {self.input : train_data,
-                                 self.length: train_length,
-                                 self.video_feature_pool: train_feature})
-                print(loss_value)
+            for epoch in range(10):
+                for i in range(0, train_generator.sample_number, self.batch_size):
+                    data, length, feature = train_generator.next()
+                    _, loss_value, summary = session.run(
+                        [self.optimizer, self.ppl, self.summary],
+                        feed_dict = {self.input : data,
+                                     self.length: length,
+                                     self.video_feature_pool: feature})
+                    print(loss_value)

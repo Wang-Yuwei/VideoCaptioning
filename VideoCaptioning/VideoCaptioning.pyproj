@@ -34,6 +34,9 @@
     <Compile Include="youtube.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="youtube_generator.py">
+      <SubType>Code</SubType>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
     <InterpreterReference Include="{422ccc6b-005e-4837-8786-1b01821ba5a0}\3.5" />
