@@ -38,7 +38,7 @@ def process_dict(sentence_filename, diction_filename, output_filename):
             if len(words) < 2:
                 continue
             for word in words:
-                if not word in dictionary:
+                if word not in dictionary:
                     dict_list.append(word)
                     dictionary[word] = len(dict_list) - 1
                 row.append(dictionary[word])
@@ -47,3 +47,4 @@ def process_dict(sentence_filename, diction_filename, output_filename):
             print(' '.join(map(str, row)), file = output)
         for word in dict_list:
             print(word, file = diction_output)
+    return dictionary, dict_list

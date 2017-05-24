@@ -1,8 +1,5 @@
 import tensorflow as tf
-import sys
-import time
-import numpy
-
+import numpy as np
 HIDDEN_NUMBER = 512
 MULTIMODEL_NUMBER = 1024
 MAX_TIME = 20
@@ -20,36 +17,27 @@ class Model:
         self.batch_size = kwargs.pop('batch_size', 2)
         self.max_time = kwargs.pop('max_time', MAX_TIME)
 
-    def create_model_body(self, initial_rnn_state = None):
+        self.input_shape = [self.batch_size, self.max_time, self.words_number]
+        self.input = tf.placeholder(tf.float32,shape = self.input_shape,name = 'onehot-word')
+        self.length = tf.placeholder(tf.float32, shape = [self.batch_size], name = 'word-length')
+        # Shape of feature pool (batch_size, depth, number of features)
+        self.video_feature_pool = tf.placeholder(tf.float32,[self.batch_size] + self.feature_shape)
+
+        #[vocabulary_size, embedding size]
         embed_table = tf.get_variable('embed_table', [HIDDEN_NUMBER, self.words_number])
         embeded_word = self.time_matmul(self.input, embed_table)
-        self.share = False
-        rnn_output, self.rnn_output_state = tf.nn.dynamic_rnn(self.gru_cell, embeded_word,
-                                                  dtype = tf.float32,
-                                                  initial_state = initial_rnn_state)
+
+        self.init_state = self.gru_cell.zero_state(self.batch_size, tf.float32)
+        rnn_output, rnn_state = tf.nn.dynamic_rnn(self.gru_cell, embeded_word, dtype = tf.float32, initial_state = self.init_state)
+        self.final_state = rnn_state
         attention_output = self.attention(self.video_feature_pool, rnn_output)
         multimodal_output = self.multimodal([attention_output, rnn_output], HIDDEN_NUMBER)
         multimodal_output = tf.nn.dropout(multimodal_output, 0.5)
         hidden_input = stanh(multimodal_output)
         hidden_output = self.time_matmul(hidden_input, tf.transpose(embed_table))
         self.next_words = tf.nn.softmax(hidden_output)
-
-
-    def create_model(self):
-        self.input_shape = [self.batch_size, self.max_time, self.words_number]
-        self.input = tf.placeholder(tf.float32,
-                                    shape = self.input_shape,
-                                    name = 'onehot-word')
-        self.length = tf.placeholder(tf.float32, shape = [self.batch_size], name = 'word-length')
-        # Shape of feature pool (batch_size, depth, number of features)
-        self.video_feature_pool = tf.placeholder(tf.float32,
-                                                 [self.batch_size] + self.feature_shape)
-
-        self.create_model_body()
-
         self.next_words_sliced = tf.slice(self.next_words, [0, 0, 0], [-1, self.max_time - 1, -1])
         self.input_sliced = tf.slice(self.input, [0, 1, 0], [-1, -1, -1])
-        # TODO add mask here
         # shape of probability (batch_size, max_sentence_length - 1, dict_size)
         self.probability = self.input_sliced * self.next_words_sliced
         # shape of probability (batch_size, max_sentence_length - 1)
@@ -59,39 +47,9 @@ class Model:
         self.log_prob = -tf.log(self.probability) * tf.cast(self.mask, tf.float32)
         self.sum_log = tf.reduce_sum(self.log_prob, [1])
         self.ppl = tf.reduce_sum(self.sum_log / self.length)
-        self.optimizer = tf.train.RMSPropOptimizer(0.00003, momentum = 0.5).minimize(self.ppl)
+        self.optimizer = tf.train.RMSPropOptimizer(0.0001, momentum = 0.5).minimize(self.ppl)
         ppl_summary = tf.summary.scalar('ppl', self.ppl)
         self.summary = tf.summary.merge_all()
-
-    def load_generating_model(self, path):
-        self.max_time = 1
-        self.gru_state = tf.placeholder(tf.float32, [self.batch_size, HIDDEN_NUMBER])
-        self.input_shape = [self.batch_size, self.max_time, self.words_number]
-        self.input = tf.placeholder(tf.float32,
-                                    shape = self.input_shape,
-                                    name = 'onehot-word')
-        # Shape of feature pool (batch_size, depth, number of features)
-        self.video_feature_pool = tf.placeholder(tf.float32,
-                                                 [self.batch_size] + self.feature_shape)
-        self.create_model_body(self.gru_state)
-        self.session = tf.Session()
-        saver = tf.train.Saver()
-        saver.restore(self.session, path)
-
-    def generate_next(self, word_index, features,
-                      input_state = None):
-        if input_state is None:
-            input_state = numpy.zeros([self.batch_size, HIDDEN_NUMBER])
-        input = numpy.zeros([self.batch_size, self.words_number])
-        input[numpy.arange(self.batch_size), word_index] = 1
-        input = numpy.expand_dims(input, axis = 1)
-        output, output_state = self.session.run(
-            [self.next_words, self.rnn_output_state],
-            feed_dict = {self.input: input, self.video_feature_pool: features, self.gru_state: input_state})
-        
-        output_word_index = numpy.reshape(output, [self.batch_size, -1])
-        output_word_index = numpy.argmax(output_word_index, axis = 1)
-        return output_word_index, output_state
 
     def time_matmul(self, input, weight):
         input_dim = input.get_shape().as_list()[2]
@@ -116,22 +74,6 @@ class Model:
                                     [self.batch_size, self.max_time, output_dim])
                 result = result + output
             return result
-
-    # Shape of input (batch_size, max_time, depth)
-    def dense(self, input, output_dim, name = 'dense'):
-        with tf.variable_scope(name, reuse = self.share):
-            input_dim = input.get_shape()[2]
-            weight = tf.get_variable('weight',
-                                     [input_dim, output_dim])
-            bias = tf.get_variable('bias',
-                                   [output_dim],
-                                   initializer = tf.constant_initializer(0))
-            input_reshaped = tf.reshape(input,
-                                        [self.batch_size * self.max_time, input_dim])
-            output_reshaped = tf.matmul(weight, input_reshaped) + bias
-            output = tf.reshape(output_reshaped,
-                                [self.batch_size, self.max_time, input_dim])
-            return output
 
     def attention(self, batch_feature, batch_input, name = 'attention'):
         input_list = tf.unstack(batch_input, axis = 0)
@@ -165,41 +107,3 @@ class Model:
             result.append(tf.stack(result_list))
         return tf.stack(result, axis = 0, name = name)
 
-    def train(self, train_generator, nb_epoch, model_prefix, logfile, loadfile = None):
-        with tf.Session() as session, open(logfile, 'w+') as f:
-            session.run(tf.global_variables_initializer())
-            saver = tf.train.Saver()
-            if loadfile is not None:
-                saver.restore(session, save_path)
-            for epoch in range(nb_epoch):
-                sys.stdout.write('epoch %d\n' % (epoch + 1))
-                start_time = time.time()
-                total_loss = 0
-                count = 0
-                for start in range(0, train_generator.sample_number, self.batch_size):
-                    data, length, feature = train_generator.next()
-                    _, loss_value, summary = session.run(
-                        [self.optimizer, self.ppl, self.summary],
-                        feed_dict = {self.input : data,
-                                     self.length: length,
-                                     self.video_feature_pool: feature})
-                    total_loss += loss_value
-                    count += 1
-                    current_time = time.time()
-                    elapsed = current_time - start_time
-                    f.write('%d/%d loss %f \n' %
-                            (start + self.batch_size, train_generator.sample_number, loss_value))
-                    f.flush()
-                    sys.stdout.write('%d/%d loss %f time %fs\r' %
-                                     (start + self.batch_size,
-                                      train_generator.sample_number, loss_value, elapsed))
-                current_time = time.time()
-                elapsed = current_time - start_time
-                sys.stdout.write('%d/%d loss %f time %fs\n' %
-                                 (train_generator.sample_number,
-                                  train_generator.sample_number, total_loss / count, elapsed))
-                f.write('%d/%d loss %f\n' %
-                        (train_generator.sample_number, train_generator.sample_number,
-                         total_loss / count))
-                f.flush()
-                saver.save(session, model_prefix, global_step = epoch + 1)
