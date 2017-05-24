@@ -289,7 +289,6 @@ __pycache__/
 *.xsd.cs
 
 # data
-feature/
-index.txt
-result.txt
-dict.txt
+features/
+result/
+models/

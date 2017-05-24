@@ -31,6 +31,9 @@
     <Compile Include="model.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="utilities.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="youtube.py">
       <SubType>Code</SubType>
     </Compile>
