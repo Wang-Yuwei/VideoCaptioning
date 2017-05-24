@@ -14,7 +14,7 @@ class YouTubeGenerator(object):
         self.batch_size = batch_size
         self.words_number = max(map(max, self.words_list))
         self.current = 0
-        self.sample_number = 2
+        self.sample_number = 20
         self.feature_shape = [50, 4096]
         #self.sample_number = len(self.video_list)
 

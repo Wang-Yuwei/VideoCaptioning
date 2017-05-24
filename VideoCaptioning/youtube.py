@@ -50,18 +50,18 @@ def process_dict(path):
         max_length = 0
         def process_word(input):
             nonlocal max_length
-            nonlocal words_list
             nonlocal dict_list
             nonlocal dictionary
+            words_list = []
             for line in input.readlines():
                 words = line.split(' ')
                 words = list(filter(lambda x: x != '',
                                     map(lambda x: x.strip(' \t\n\r.!'), words)))
                 words_list.append(words)
                 max_length = max(max_length, len(words))
-        def process_input(input, output):
+            return words_list
+        def process_input(words_list, output):
             nonlocal max_length
-            nonlocal words_list
             nonlocal dict_list
             nonlocal dictionary
             for words in words_list:
@@ -78,12 +78,12 @@ def process_dict(path):
                 row.append(1)
                 row = row + [2] * (max_length - len(row))
                 print(' '.join(map(str, row)), file = output)
-        process_word(train_file)
-        process_word(test_file)
+        train_words = process_word(train_file)
+        test_words = process_word(test_file)
         max_length += 2
         print('The max length of sentence is %d. ' % max_length)    
-        process_input(train_file, train_output)
-        process_input(test_file, test_output)
+        process_input(train_words, train_output)
+        process_input(test_words, test_output)
         for word in dict_list:
             print(word, file = diction_output)
     return dictionary, dict_list

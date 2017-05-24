@@ -1,7 +1,9 @@
 import tensorflow as tf
 import numpy as np
 from model import Model
-
+import time
+import sys
+import os
 
 def create_model(session, feature_shape, words_number, batch_size, max_time, train_dir, train=True):
     model = Model(feature_shape=feature_shape,
@@ -19,12 +21,15 @@ def create_model(session, feature_shape, words_number, batch_size, max_time, tra
     return model, saver
 
 def train(g, save_path=None):
-    with tf.Session() as session:
+    with tf.Session() as session, open(os.path.dirname(save_path) + '/log.txt', 'w+') as file:
         session.run(tf.global_variables_initializer())
         model, saver = create_model(session, g.feature_shape, g.words_number, g.batch_size, g.max_sentence_length, save_path)
-        for epoch in range(2):
+        for epoch in range(100):
             print("epoch : " + str(epoch + 1))
             state = None
+            start_time = time.time()
+            total_loss = 0
+            count = 0
             for i in range(0, g.sample_number, g.batch_size):
                 data, length, feature = g.next()
                 feed_dict = {model.input: data,
@@ -32,10 +37,21 @@ def train(g, save_path=None):
                              model.video_feature_pool: feature}
                 if state is not None:
                     feed_dict[model.init_state]= state
-                fetch_dict = {"loss": model.ppl, "state":model.final_state}
+                fetch_dict = {"optimizer": model.optimizer, "loss": model.ppl, "state":model.final_state}
+                current_time = time.time()
                 val = session.run(fetch_dict, feed_dict)
-                print(val['loss'])
-        saver.save(session, save_path+"/model")
+                loss = val['loss']
+                log = '%d/%d loss %f time %fs' % (i + g.batch_size, g.sample_number, loss, current_time - start_time)
+                sys.stdout.write(log + '\r')
+                file.write(log + '\n')
+                total_loss += loss
+                count += 1
+            loss = total_loss / count
+            current_time = time.time()
+            log = '%d/%d loss %f time %fs' % (g.sample_number, g.sample_number, loss, current_time - start_time)
+            sys.stdout.write(log + '\n')
+            file.write(log + '\n')
+            saver.save(session, save_path, global_step = epoch + 1)
 
 def generation(g, save_path, videos, idx_to_word):
     with tf.Session() as session:
