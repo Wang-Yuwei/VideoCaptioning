@@ -3,6 +3,7 @@ import numpy as np
 from model import Model
 import time
 import sys
+from beamsearch import BeamSearch
 import os
 
 def create_model(session, feature_shape, words_number, batch_size, max_time, train_dir, train=True):
@@ -57,14 +58,15 @@ def generation(g, save_path, videos, idx_to_word):
     with tf.Session() as session:
         session.run(tf.global_variables_initializer())
         model, _ = create_model(session, g.feature_shape, g.words_number,1,1, save_path)
-        state = None
-        # TODO: Beam Search
+        MAX_STEP = 20
+        PICK_TOP = 5
         for video in videos:
             video_feature = np.load('features' + '/' + video + '.npy')
             video_feature = [video_feature]
-            current_word = 0
-            caption = [current_word]
-            for i in range(20):
+            beam = BeamSearch()
+            id, current_word, state = beam.next()
+            step = 0
+            while(id is not None and step < MAX_STEP):
                 input = np.zeros([1, 1, g.words_number])
                 input[0][0][current_word] = 1
                 length = np.array([1])
@@ -76,8 +78,10 @@ def generation(g, save_path, videos, idx_to_word):
                 fetch_dict = {'prob':model.next_words,
                               'state':model.final_state}
                 vals = session.run(fetch_dict, feed_dict)
-                p = np.squeeze(vals['prob'])
-                current_word = np.argmax(p)
-                caption.append(current_word)
-            caption = map(lambda x: idx_to_word[x], caption)
-            print(" ".join(caption))
+                probs = np.squeeze(vals['prob'])
+                top_index = sorted(range(len(probs)), key=lambda i: probs[i])[-PICK_TOP:]
+                beam.add(id, top_index, probs[top_index], vals['state'])
+                id, current_word, state = beam.next()
+            for sentence in beam.sentence_pool:
+                caption = map(lambda x: idx_to_word[x], sentence['seq'])
+                print(" ".join(caption))

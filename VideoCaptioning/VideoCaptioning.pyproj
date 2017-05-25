@@ -24,6 +24,9 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="beamsearch.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="extract_features.py" />
     <Compile Include="main.py">
       <SubType>Code</SubType>

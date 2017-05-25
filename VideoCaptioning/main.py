@@ -5,11 +5,11 @@ from youtube_generator import YouTubeGenerator
 from train import *
 import tensorflow as tf
 
-preprocess_data('youtubeclips')
+#preprocess_data('youtubeclips')
 word2idx, idx_to_word = process_dict('youtubeclips')
-batch_size = 2
+batch_size = 1
 generator = YouTubeGenerator('youtubeclips/result/train-index.txt', 'features', batch_size)
 #need to make a new folder, called save
 # train(generator, save_path='models/youtube')
 #tf.reset_default_graph()
-#generation(generator, save_path='models', videos=['vid1'], idx_to_word=idx_to_word)
+generation(generator, save_path='models', videos=['vid15'], idx_to_word=idx_to_word)
