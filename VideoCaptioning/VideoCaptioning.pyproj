@@ -24,7 +24,13 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="attention_layer.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="beamsearch.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="dense_transpose.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="extract_features.py" />
@@ -32,6 +38,9 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="model.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="multimodal_layer.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="utilities.py">
