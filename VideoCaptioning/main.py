@@ -3,7 +3,7 @@ import numpy
 from youtube import preprocess_data, process_dict
 from youtube_generator import YouTubeGenerator
 
-#preprocess_data('youtubeclips')
+preprocess_data('youtubeclips')
 #word2idx, idx_to_word = process_dict('youtubeclips')
 batch_size = 1
 generator = YouTubeGenerator('youtubeclips/result/train-index.txt', 'features', batch_size)

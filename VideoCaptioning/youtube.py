@@ -21,7 +21,7 @@ def preprocess_data(path):
         for line in desc_file.readlines():
             fields = line.split(',')
             url = '%s_%s_%s' % (fields[0], fields[1], fields[2])
-            sentence = fields[-1].strip(' \t\n\r')[:-1]
+            sentence = fields[-1].strip(' \t\n\r\.\"?!')
             if not url in youtube_map or len(sentence.split(' ')) > 20:
                 continue
             name = youtube_map[url]
@@ -56,7 +56,7 @@ def process_dict(path):
             for line in input.readlines():
                 words = line.split(' ')
                 words = list(filter(lambda x: x != '',
-                                    map(lambda x: x.strip(' \t\n\r.!'), words)))
+                                    map(lambda x: x.strip(' \t\n\r\.\"?!'), words)))
                 words_list.append(words)
                 max_length = max(max_length, len(words))
             return words_list
