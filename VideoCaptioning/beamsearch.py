@@ -2,21 +2,21 @@ import numpy as np
 from operator import itemgetter
 import math
 class BeamSearch:
-    def __init__(self):
-        self.BOS = 0
+    def __init__(self, Nsequence, Nsentence):
+        self.BOS = 3
         self.EOS = 1
         self.sentence_pool = []
         self.cost_sentence = []
         self.word_sequence = [{'seq': [self.BOS], 'state': None}]
         self.cost_sequence = [0]
-        self.Nsentence = 5
-        self.Nsequence = 5
+        self.Nsentence = Nsentence
+        self.Nsequence = Nsequence
 
     def next(self):
         if(len(self.cost_sequence) == 0):
             return None, None, None
         nextId = np.argmin(self.cost_sequence)
-        word = self.word_sequence[nextId]['seq'][-1]
+        word = self.word_sequence[nextId]['seq']
         state = self.word_sequence[nextId]['state']
         return nextId, word, state
 
@@ -66,4 +66,4 @@ class BeamSearch:
             print("%s %s" %(self.word_sequence[i]['seq'], self.cost_sequence[i].__str__()))
         print("pool:")
         for i in range(len(self.sentence_pool)):
-            print("%s %s" %(self.sentence_pool[i], self.cost_sentence[i].__str__()))
+            print("%s %s" %(self.sentence_pool[i]['seq'], self.cost_sentence[i].__str__()))
