@@ -83,12 +83,12 @@ class CaptioningModel:
         checkpoint = ModelCheckpoint(filepath, save_weights_only = True, monitor = 'loss')
         logger = HistoryLogger(savepath + '/log.txt')
         self.model.fit_generator(generator.read_generator(),
-                       steps_per_epoch = int(generator.sample_number / generator.batch_size), epochs = epochs, callbacks = [checkpoint, logger])
+                       steps_per_epoch = int(generator.sample_number / generator.batch_size), epochs = epochs, callbacks = [logger])
         self.model.save_weights(savepath + '/final-weights.hdf5')
-        #input, output = next(generator.read_generator())
-        #output = self.model.predict(input)
-        #args = np.argmax(output, axis = -1)
-        #print(args)
+        input, output = next(generator.read_generator())
+        output = self.model.predict(input)
+        args = np.argmax(output, axis = -1)
+        print(args)
 
     def generate(self, generator, savepath):
         self.model.load_weights(savepath, by_name = True)
