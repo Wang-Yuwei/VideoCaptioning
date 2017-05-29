@@ -8,7 +8,7 @@ from multimodal_layer import MultimodalLayer
 import keras.backend as K
 from dense_transpose import DenseTranspose
 import numpy as np
-
+from beamsearch import BeamSearch
 HIDDEN_NUMBER = 512
 MULTIMODEL_NUMBER = 1024
 MAX_TIME = 20
@@ -56,7 +56,7 @@ class CaptioningModel:
 
         return compute_loss
 
-    def create_model(self):
+    def create_model(self, train=True):
         words_input = Input(shape = (self.max_time, self.words_number),
                             dtype = 'float32')
         video_feature_pool = Input(shape = self.feature_shape, dtype = 'float32')
@@ -72,27 +72,59 @@ class CaptioningModel:
         decode_output = TimeDistributed(Dense(activation = 'tanh', units = HIDDEN_NUMBER))(dropout)
         softmax_input = DenseTranspose(embeded_layer)(decode_output)
         softmax_output = Activation(activation = 'softmax')(softmax_input)
-        model = Model(inputs = [words_input, mask, video_feature_pool], outputs = [softmax_output])
-        loss_function = self.get_loss_function(mask)
-        model.summary()
-        model.compile(optimizer = RMSprop(lr = 0.0001), loss = loss_function)
-        self.model = model
+        if(train == True):
+            model = Model(inputs = [words_input, mask, video_feature_pool], outputs = [softmax_output])
+            loss_function = self.get_loss_function(mask)
+            model.summary()
+            model.compile(optimizer = RMSprop(lr = 0.0001), loss = loss_function)
+            self.model = model
+        else:
+            model = Model(inputs=[words_input, video_feature_pool], outputs=[softmax_output])
+            loss_function = self.get_loss_function(mask)
+            model.summary()
+            model.compile(optimizer=RMSprop(lr=0.0001), loss=loss_function)
+            self.model = model
 
     def train(self, generator, epochs, savepath):
         filepath = savepath + '/word-weights-improvement-{epoch:02d}.hdf5'
         checkpoint = ModelCheckpoint(filepath, save_weights_only = True, monitor = 'loss')
         logger = HistoryLogger(savepath + '/log.txt')
         self.model.fit_generator(generator.read_generator(),
-                       steps_per_epoch = int(generator.sample_number / generator.batch_size), epochs = epochs, callbacks = [logger])
+                       steps_per_epoch = int(generator.sample_number / generator.batch_size), epochs = epochs, callbacks = [checkpoint, logger])
         self.model.save_weights(savepath + '/final-weights.hdf5')
-        input, output = next(generator.read_generator())
-        output = self.model.predict(input)
-        args = np.argmax(output, axis = -1)
+        #input, output = next(generator.read_generator())
+        #output = self.model.predict(input)
+        #args = np.argmax(output, axis = -1)
+        #print(args)
+
+    def generate(self, generator, idx_to_word, video):
+        self.model.load_weights('models/word-weights-improvement-68.hdf5')
+
+        input1, input2 = next(generator.read_generator())
+        output1 = self.model.predict([input1[0],input1[2]])
+        args = np.argmax(output1, axis = -1)
         print(args)
 
-    def generate(self, generator, savepath):
-        self.model.load_weights(savepath, by_name = True)
-        input, output = next(generator.read_generator())
-        output = self.model.predict(input)
-        args = np.argmax(output, axis = -1)
-        print(args)
+        video_feature = np.load('features' + '/' + video + '.npy')
+        video_feature = [video_feature]
+        text_feature = np.zeros([1, self.max_time, self.words_number])
+        beam = BeamSearch(Nsequence=1, Nsentence=1)
+        id, sequence, state = beam.next()
+        step = 0
+        MAX_STEP = self.max_time
+        PICK_TOP = 2
+        while (id is not None and step < MAX_STEP):
+            text_feature = np.zeros([1, self.max_time, self.words_number])
+            for i in range(len(sequence)):
+                text_feature[0][i][sequence[i]] = 1
+            output = self.model.predict([text_feature, np.stack(video_feature)])
+            probs = np.squeeze(output[0][len(sequence)])
+            top_index = sorted(range(len(probs)), key=lambda i: probs[i])[-PICK_TOP:]
+            print(top_index)
+            beam.add(id, top_index, probs[top_index], None)
+            id, sequence, state = beam.next()
+            beam.print()
+            step = step + 1
+        for sentence in beam.sentence_pool:
+            caption = map(lambda x: idx_to_word[x], sentence['seq'])
+            print(" ".join(caption))

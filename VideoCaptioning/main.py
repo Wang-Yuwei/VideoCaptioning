@@ -5,16 +5,21 @@ from youtube_generator import YouTubeGenerator
 
 preprocess_data('youtubeclips')
 word2idx, idx_to_word = process_dict('youtubeclips')
-batch_size = 1
+
+'''
+batch_size = 100
 generator = YouTubeGenerator('youtubeclips/result/train-index.txt', 'features', batch_size)
-#need to make a new folder, called save
-#train(generator, save_path='models/youtube')
 model = CaptioningModel(feature_shape=generator.feature_shape,
                         words_number=generator.words_number,
                         batch_size=batch_size,
                         max_time=generator.max_sentence_length)
 model.create_model()
-#model.train(generator, 250, 'models')
-model.generate(generator, 'models/word-weights-improvement-68.hdf5')
-#tf.reset_default_graph()
-#generation(generator, save_path='models', videos=['vid15'], idx_to_word=idx_to_word)
+'''
+
+generator = YouTubeGenerator('youtubeclips/result/train-index.txt', 'features', 1)
+model = CaptioningModel(feature_shape=generator.feature_shape,
+                        words_number=generator.words_number,
+                        batch_size=1,
+                        max_time=generator.max_sentence_length)
+model.create_model(train=False)
+model.generate(generator, idx_to_word=idx_to_word, video='vid1216')

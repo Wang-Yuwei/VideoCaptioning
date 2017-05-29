@@ -86,4 +86,4 @@ def process_dict(path):
         process_input(test_words, test_output)
         for word in dict_list:
             print(word, file = diction_output)
-    return dictionary, dict_list
+        return dictionary, dict_list
