@@ -90,12 +90,13 @@ class CaptioningModel:
         checkpoint = ModelCheckpoint(filepath, save_weights_only = True, monitor = 'loss')
         logger = HistoryLogger(savepath + '/log.txt')
         self.model.fit_generator(generator.read_generator(),
-                       steps_per_epoch = int(generator.sample_number / generator.batch_size), epochs = epochs, callbacks = [checkpoint, logger])
+                       steps_per_epoch = int(generator.sample_number / generator.batch_size), epochs = epochs,
+                       callbacks = [logger])
         self.model.save_weights(savepath + '/final-weights.hdf5')
-        #input, output = next(generator.read_generator())
-        #output = self.model.predict(input)
-        #args = np.argmax(output, axis = -1)
-        #print(args)
+        input, output = next(generator.read_generator())
+        output = self.model.predict(input)
+        args = np.argmax(output, axis = -1)
+        print(args)
 
     def generate(self, generator, idx_to_word, video):
         self.model.load_weights('models/word-weights-improvement-68.hdf5')
@@ -118,7 +119,7 @@ class CaptioningModel:
             for i in range(len(sequence)):
                 text_feature[0][i][sequence[i]] = 1
             output = self.model.predict([text_feature, np.stack(video_feature)])
-            probs = np.squeeze(output[0][len(sequence)])
+            probs = np.squeeze(output[0][len(sequence) - 1])
             top_index = sorted(range(len(probs)), key=lambda i: probs[i])[-PICK_TOP:]
             print(top_index)
             beam.add(id, top_index, probs[top_index], None)

@@ -43,6 +43,9 @@
     <Compile Include="multimodal_layer.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="tacos.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="utilities.py">
       <SubType>Code</SubType>
     </Compile>

@@ -3,7 +3,7 @@ from operator import itemgetter
 import math
 class BeamSearch:
     def __init__(self, Nsequence, Nsentence):
-        self.BOS = 3
+        self.BOS = 0
         self.EOS = 1
         self.sentence_pool = []
         self.cost_sentence = []
