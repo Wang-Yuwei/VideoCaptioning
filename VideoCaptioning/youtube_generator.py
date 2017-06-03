@@ -14,9 +14,9 @@ class YouTubeGenerator(object):
         self.batch_size = batch_size
         self.words_number = max(map(max, self.words_list)) + 1
         self.current = 0
-        #self.sample_number = 200
+        self.sample_number = 1
         self.feature_shape = [50, 4096]
-        self.sample_number = len(self.video_list)
+        #self.sample_number = len(self.video_list)
 
     def read_generator(self):
         while True:
@@ -40,6 +40,18 @@ class YouTubeGenerator(object):
                             mask[i, j] = 0
                 result = numpy.zeros([self.batch_size, self.max_sentence_length, self.words_number])
                 result[:, 0:self.max_sentence_length-1, :] = sentences[:, 1:, :]
+                second_sentence = numpy.zeros_like(sentences)
+                second_mask = numpy.zeros_like(mask)
+                second_result = numpy.zeros_like(result)
+                second_sentence[:, 0, 0] = 1
+                second_sentence[:, 1, 1] = 1
+                second_sentence[:, 2:, 2] = 1
+                second_mask[:, :3] = 1
+                second_result[:, 0, 1] = 1
+                second_result[:, 1:, 2] = 1
+                sentences = numpy.stack([sentences, second_sentence], axis = 1)
+                mask = numpy.stack([mask, second_mask], axis = 1)
+                result = numpy.stack([result, second_result], axis = 1)
                 yield [sentences, mask, numpy.stack(features)], [result]
 
     def next(self):

@@ -43,6 +43,17 @@
     <Compile Include="multimodal_layer.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="paragraph_rnn.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="recurrentshop\advanced_cells.py" />
+    <Compile Include="recurrentshop\backend\tensorflow_backend.py" />
+    <Compile Include="recurrentshop\backend\theano_backend.py" />
+    <Compile Include="recurrentshop\backend\__init__.py" />
+    <Compile Include="recurrentshop\basic_cells.py" />
+    <Compile Include="recurrentshop\cells.py" />
+    <Compile Include="recurrentshop\engine.py" />
+    <Compile Include="recurrentshop\__init__.py" />
     <Compile Include="tacos.py">
       <SubType>Code</SubType>
     </Compile>
@@ -58,6 +69,10 @@
   </ItemGroup>
   <ItemGroup>
     <InterpreterReference Include="{422ccc6b-005e-4837-8786-1b01821ba5a0}\3.5" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="recurrentshop\" />
+    <Folder Include="recurrentshop\backend\" />
   </ItemGroup>
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>

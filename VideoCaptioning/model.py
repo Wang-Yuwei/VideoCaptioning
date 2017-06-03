@@ -1,10 +1,12 @@
 import keras
 from keras.models import Sequential, Model
-from keras.layers import Dense, Activation, Input, GRU, Dropout, TimeDistributed
+from keras.layers import Dense, Activation, Input, GRU, Dropout, TimeDistributed, Lambda, Concatenate
 from keras.optimizers import RMSprop
 from keras.callbacks import ModelCheckpoint, Callback
+from recurrentshop import GRUCell, RecurrentModel
 from attention_layer import AttentionLayer
 from multimodal_layer import MultimodalLayer
+from paragraph_rnn import ParagraphRNN
 import keras.backend as K
 from dense_transpose import DenseTranspose
 import numpy as np
@@ -32,6 +34,7 @@ class CaptioningModel:
         self.words_number = kwargs.pop('words_number', 12)
         self.batch_size = kwargs.pop('batch_size', 2)
         self.max_time = kwargs.pop('max_time', MAX_TIME)
+        self.max_sentence_number = kwargs.pop('max_sentence_number')
 
     def embedding_layer(self, input_data):
         model = Sequential()
@@ -48,42 +51,50 @@ class CaptioningModel:
 
     def get_loss_function(self, mask):
         length = K.sum(mask, axis = -1)
+        length = K.sum(mask, axis = -1)
         def compute_loss(y_true, y_pred):
             prob = y_true * y_pred
-            print(prob.shape)
-            log_prob = -K.log(K.sum(prob, axis = -1) * mask + 1e-7)
-            return K.sum(log_prob, axis = -1) / length
-
+            log_prob = -K.log(K.sum(prob, axis = -1) + 1e-7) * mask 
+            print(log_prob.shape)
+            return K.sum(K.sum(log_prob, axis = -1), axis = -1) / length
         return compute_loss
 
-    def create_model(self, train=True):
+    def create_sentence_model(self, train=True):
         words_input = Input(shape = (self.max_time, self.words_number),
                             dtype = 'float32')
         video_feature_pool = Input(shape = self.feature_shape, dtype = 'float32')
         mask = Input(shape = (self.max_time,), dtype = 'float32')
+        input_state = Input(shape = (HIDDEN_NUMBER,), dtype = 'float32')
+        first_state = Lambda(lambda x: x)(input_state)
         embeded_layer = Dense(HIDDEN_NUMBER, input_shape = (self.max_time, self.words_number))
         words_embeded = embeded_layer(words_input)
-        rnn_output = GRU(HIDDEN_NUMBER, return_sequences = True,
-                  input_shape = (self.max_time, HIDDEN_NUMBER),
-                  activation = 'relu')(words_embeded)
+        cell = GRUCell(HIDDEN_NUMBER, input_dim = K.int_shape(words_embeded)[-1])
+        GRULayer = cell.get_layer(return_sequences = True, unroll = True, return_states = True)
+        rnn_output, final_state = GRULayer(words_embeded, initial_state = first_state)
         attention_output = AttentionLayer(internal_dim = 256, name = 'attention')([video_feature_pool, rnn_output])
         multimodal_output = MultimodalLayer(output_dim = 1024)([rnn_output, attention_output])
         dropout = Dropout(0.5)(multimodal_output)
         decode_output = TimeDistributed(Dense(activation = 'tanh', units = HIDDEN_NUMBER))(dropout)
         softmax_input = DenseTranspose(embeded_layer)(decode_output)
         softmax_output = Activation(activation = 'softmax')(softmax_input)
-        if(train == True):
-            model = Model(inputs = [words_input, mask, video_feature_pool], outputs = [softmax_output])
-            loss_function = self.get_loss_function(mask)
-            model.summary()
-            model.compile(optimizer = RMSprop(lr = 0.0001), loss = loss_function)
-            self.model = model
-        else:
-            model = Model(inputs=[words_input, video_feature_pool], outputs=[softmax_output])
-            loss_function = self.get_loss_function(mask)
-            model.summary()
-            model.compile(optimizer=RMSprop(lr=0.0001), loss=loss_function)
-            self.model = model
+        model = Model(inputs = [words_input, input_state, video_feature_pool], outputs = [softmax_output, final_state, words_embeded])
+        return model
+
+    def create_paragraph_model(self, train = True):
+        K.set_learning_phase(1)
+        sentence_input = Input(shape = (self.max_sentence_number, self.max_time, self.words_number))
+        video_feature_pool = Input(shape = self.feature_shape)
+        mask = Input(shape = (self.max_sentence_number, self.max_time))
+        sentence_model = self.create_sentence_model()
+        rnn_layer = ParagraphRNN(HIDDEN_NUMBER, sentence_model)
+        sentence_output = rnn_layer([sentence_input, mask, video_feature_pool])
+        sentence_model.summary()
+        model = Model(inputs = [sentence_input, mask, video_feature_pool],
+                      outputs = [sentence_output])
+        self.model = model
+        loss_function = self.get_loss_function(mask)
+        model.compile(optimizer = RMSprop(lr = 0.0001), loss = loss_function)
+        model.summary()        
 
     def train(self, generator, epochs, savepath):
         filepath = savepath + '/word-weights-improvement-{epoch:02d}.hdf5'
@@ -94,6 +105,8 @@ class CaptioningModel:
                        callbacks = [logger])
         self.model.save_weights(savepath + '/final-weights.hdf5')
         input, output = next(generator.read_generator())
+        print(input)
+        print(output)
         output = self.model.predict(input)
         args = np.argmax(output, axis = -1)
         print(args)
