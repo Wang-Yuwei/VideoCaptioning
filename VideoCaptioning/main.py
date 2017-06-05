@@ -6,14 +6,15 @@ from youtube_generator import YouTubeGenerator
 preprocess_data('youtubeclips')
 word2idx, idx_to_word = process_dict('youtubeclips')
 
-'''
-batch_size = 100
+batch_size = 1
 generator = YouTubeGenerator('youtubeclips/result/train-index.txt', 'features', batch_size)
 model = CaptioningModel(feature_shape=generator.feature_shape,
                         words_number=generator.words_number,
                         batch_size=batch_size,
                         max_time=generator.max_sentence_length)
 model.create_model()
+generator.sample_number = 2
+model.train(generator, 300, 'models')
 '''
 
 generator = YouTubeGenerator('youtubeclips/result/train-index.txt', 'features', 1)
@@ -23,3 +24,4 @@ model = CaptioningModel(feature_shape=generator.feature_shape,
                         max_time=generator.max_sentence_length)
 model.create_model(train=False)
 model.generate(generator, idx_to_word=idx_to_word, video='vid1216')
+'''
